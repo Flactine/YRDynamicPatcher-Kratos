@@ -66,6 +66,47 @@ namespace ExtensionHooks
             return 0;
         }
 
+        #region After Render
+        public static UInt32 TechnoClass_Render2(Pointer<TechnoClass> pTechno)
+        {
+            try
+            {
+                TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
+                ext.OnRender2();
+
+                return 0;
+            }
+            catch (Exception e)
+            {
+                Logger.PrintException(e);
+                return 0;
+            }
+        }
+        [Hook(HookType.AresHook, Address = 0x4149F0, Size = 5)]
+        public static unsafe UInt32 AircraftClass_Render2(REGISTERS* R)
+        {
+            Pointer<AircraftClass> pAircraft = (IntPtr)R->ECX;
+            return TechnoClass_Render2(pAircraft.Convert<TechnoClass>());
+        }
+        // [Hook(HookType.AresHook, Address = 0x43DA6C, Size = 7)]
+        // public static unsafe UInt32 BuildingClass_Render2(REGISTERS* R)
+        // {
+        //     Pointer<BuildingClass> pBuilding = (IntPtr)R->ECX;
+        //     return TechnoClass_Render2(pBuilding.Convert<TechnoClass>());
+        // }
+        [Hook(HookType.AresHook, Address = 0x51961A, Size = 5)]
+        public static unsafe UInt32 InfantryClass_Render2(REGISTERS* R)
+        {
+            Pointer<InfantryClass> pInfantry = (IntPtr)R->ECX;
+            return TechnoClass_Render2(pInfantry.Convert<TechnoClass>());
+        }
+        [Hook(HookType.AresHook, Address = 0x73D410, Size = 5)]
+        public static unsafe UInt32 UnitClass_Render2(REGISTERS* R)
+        {
+            Pointer<UnitClass> pUnit = (IntPtr)R->ECX;
+            return TechnoClass_Render2(pUnit.Convert<TechnoClass>());
+        }
+        #endregion
 
         [Hook(HookType.AresHook, Address = 0x6F9E50, Size = 5)]
         public static unsafe UInt32 TechnoClass_Update(REGISTERS* R)
@@ -109,7 +150,7 @@ namespace ExtensionHooks
             }
             return 0x71AB08;
         }
-        
+
         // [Hook(HookType.AresHook, Address = 0x7067E8, Size = 7)]
         // public static unsafe UInt32 TechnoClass_Draw_Voxel(REGISTERS* R)
         // {
@@ -236,46 +277,15 @@ namespace ExtensionHooks
         }
         #endregion
 
-
-        #region After Render
-        public static UInt32 TechnoClass_Render2(Pointer<TechnoClass> pTechno)
+        #region UnitClass Deplayed
+        [Hook(HookType.AresHook, Address = 0x739B6A, Size = 6)] // No Anim
+        [Hook(HookType.AresHook, Address = 0x739C6A, Size = 6)] // Has Anim
+        public static unsafe UInt32 UnitClass_Deployed(REGISTERS* R)
         {
-            try
-            {
-                TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
-                ext.OnRender2();
-
-                return 0;
-            }
-            catch (Exception e)
-            {
-                Logger.PrintException(e);
-                return 0;
-            }
-        }
-        [Hook(HookType.AresHook, Address = 0x4149F0, Size = 5)]
-        public static unsafe UInt32 AircraftClass_Render2(REGISTERS* R)
-        {
-            Pointer<AircraftClass> pAircraft = (IntPtr)R->ECX;
-            return TechnoClass_Render2(pAircraft.Convert<TechnoClass>());
-        }
-        // [Hook(HookType.AresHook, Address = 0x43DA6C, Size = 7)]
-        // public static unsafe UInt32 BuildingClass_Render2(REGISTERS* R)
-        // {
-        //     Pointer<BuildingClass> pBuilding = (IntPtr)R->ECX;
-        //     return TechnoClass_Render2(pBuilding.Convert<TechnoClass>());
-        // }
-        [Hook(HookType.AresHook, Address = 0x51961A, Size = 5)]
-        public static unsafe UInt32 InfantryClass_Render2(REGISTERS* R)
-        {
-            Pointer<InfantryClass> pInfantry = (IntPtr)R->ECX;
-            return TechnoClass_Render2(pInfantry.Convert<TechnoClass>());
-        }
-        [Hook(HookType.AresHook, Address = 0x73D410, Size = 5)]
-        public static unsafe UInt32 UnitClass_Render2(REGISTERS* R)
-        {
-            Pointer<UnitClass> pUnit = (IntPtr)R->ECX;
-            return TechnoClass_Render2(pUnit.Convert<TechnoClass>());
+            Pointer<TechnoClass> pTechno = (IntPtr)R->ESI;
+            TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
+            ext.UnitClass_Deployed_DeployToTransform();
+            return 0;
         }
         #endregion
 
@@ -284,12 +294,12 @@ namespace ExtensionHooks
         {
             Pointer<TechnoClass> pTechno = (IntPtr)R->ECX;
             var pCoord = R->Stack<Pointer<CoordStruct>>(0x4);
-            var faceDir = R->Stack<DirStruct>(0x8);
+            var faceDirValue8 = R->Stack<short>(0x8);
 
             TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
-            ext?.OnPut(pCoord, faceDir);
+            ext?.OnPut(pCoord, faceDirValue8);
 
-            ext?.AttachedComponent.Foreach(c => (c as ITechnoScriptable)?.OnPut(pCoord.Data, faceDir));
+            ext?.AttachedComponent.Foreach(c => (c as ITechnoScriptable)?.OnPut(pCoord.Data, faceDirValue8));
             return 0;
         }
 
@@ -635,6 +645,22 @@ namespace ExtensionHooks
             return 0;
         }
 
+        [Hook(HookType.AresHook, Address = 0x6FF929, Size = 6)]
+        public static unsafe UInt32 TechnoClass_Fire_FireOnce(REGISTERS* R)
+        {
+            try
+            {
+                Pointer<TechnoClass> pTechno = (IntPtr)R->ECX;
+                TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
+                ext?.OnFireOnce();
+            }
+            catch (Exception e)
+            {
+                Logger.PrintException(e);
+            }
+            return 0;
+        }
+
 
         [Hook(HookType.AresHook, Address = 0x6FDD61, Size = 5)]
         public static unsafe UInt32 TechnoClass_Fire_OverrideWeapon(REGISTERS* R)
@@ -649,7 +675,7 @@ namespace ExtensionHooks
                 {
                     if (!pWeapon.IsNull)
                     {
-                        Logger.Log("Override weapon {0}", pWeapon.Ref.Base.ID);
+                        // Logger.Log("Override weapon {0}", pWeapon.Ref.Base.ID);
                         R->EBX = (uint)pWeapon;
                         return 0x6FDD71;
                     }
@@ -662,20 +688,20 @@ namespace ExtensionHooks
             return 0;
         }
 
-        [Hook(HookType.AresHook, Address = 0x6FDD7D, Size = 5)]
-        public static unsafe UInt32 TechnoClass_Fire_OverrideWeapon2(REGISTERS* R)
-        {
-            try
-            {
-                Pointer<WeaponTypeClass> pWeapon = (IntPtr)R->EBX;
-                Logger.Log($"{Game.CurrentFrame} - OOXX {R->EBX} [{pWeapon.Ref.Base.ID}]");
-            }
-            catch (Exception e)
-            {
-                Logger.PrintException(e);
-            }
-            return 0;
-        }
+        // [Hook(HookType.AresHook, Address = 0x6FDD7D, Size = 5)]
+        // public static unsafe UInt32 TechnoClass_Fire_OverrideWeapon2(REGISTERS* R)
+        // {
+        //     try
+        //     {
+        //         Pointer<WeaponTypeClass> pWeapon = (IntPtr)R->EBX;
+        //         Logger.Log($"{Game.CurrentFrame} - OOXX {R->EBX} [{pWeapon.Ref.Base.ID}]");
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Logger.PrintException(e);
+        //     }
+        //     return 0;
+        // }
 
         [Hook(HookType.AresHook, Address = 0x702E9D, Size = 6)]
         public static unsafe UInt32 TechnoClass_RegisterDestruction(REGISTERS* R)
@@ -718,6 +744,25 @@ namespace ExtensionHooks
                 if (!selectable)
                 {
                     return 0x5F45A9;
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.PrintException(e);
+            }
+            return 0;
+        }
+
+        [Hook(HookType.AresHook, Address = 0x6FC018, Size = 6)]
+        public static unsafe UInt32 TechnoClass_Select_SkipVoice(REGISTERS* R)
+        {
+            try
+            {
+                Pointer<TechnoClass> pTechno = (IntPtr)R->ESI;
+                TechnoExt ext = TechnoExt.ExtMap.Find(pTechno);
+                if (ext.SkipSelectVoice)
+                {
+                    return 0x6FC01E;
                 }
             }
             catch (Exception e)

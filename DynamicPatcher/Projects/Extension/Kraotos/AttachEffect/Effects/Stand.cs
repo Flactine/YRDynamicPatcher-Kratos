@@ -94,6 +94,8 @@ namespace Extension.Ext
                                     TechnoExt masterExt = TechnoExt.ExtMap.Find(pObject.Convert<TechnoClass>());
                                     // 染色
                                     ext.AttachEffectManager.PaintballState = masterExt.AttachEffectManager.PaintballState;
+                                    // 箱子加成
+                                    ext.CrateStatus = masterExt.CrateStatus;
                                 }
                                 break;
                         }
@@ -119,12 +121,16 @@ namespace Extension.Ext
                     Mission mission = canGuard ? Mission.Guard : Mission.Hunt;
                     pStand.Pointer.Convert<MissionClass>().Ref.QueueMission(mission, false);
 
-                    // 在格子位置刷出替身单位
-                    if (!TryPutStand(location))
+                    if (!pObject.IsInvisible())
                     {
-                        // 刷不出来？
-                        Disable(location);
-                        return;
+                        // Logger.Log($"{Game.CurrentFrame} - put stand on {location}");
+                        // 在格子位置刷出替身单位
+                        if (!TryPutStand(location))
+                        {
+                            // 刷不出来？
+                            Disable(location);
+                            return;
+                        }
                     }
 
                     // 放置到指定位置
@@ -135,6 +141,7 @@ namespace Extension.Ext
                         // 强扭朝向
                         ForceSetFacing(locationMark.Direction);
                     }
+
 
                     // Logger.Log("{0} - 创建替身[{1}]{2}", Game.CurrentFrame, Type.Type, pStand.Pointer);
                 }
@@ -166,11 +173,14 @@ namespace Extension.Ext
                 pStand.Ref.Base.OnBridge = pCell.Ref.ContainsBridge();
                 CoordStruct xyz = pCell.Ref.GetCoordsWithBridge();
                 ++Game.IKnowWhatImDoing;
-                pStand.Ref.Base.Put(xyz, Direction.E);
+                pStand.Ref.Base.Put(xyz, 0);
                 --Game.IKnowWhatImDoing;
                 pCell.Ref.OccupationFlags = occFlags;
                 return true;
             }
+            // ++Game.IKnowWhatImDoing;
+            // bool isPut = pStand.Ref.Base.Put(location, 0);
+            // --Game.IKnowWhatImDoing;
             return false;
         }
 
@@ -272,11 +282,11 @@ namespace Extension.Ext
                         }
 
                         // 播放行动动画的测试
-                        if (standLocoId == LocomotionClass.Drive)
-                        {
-                            Pointer<DriveLocomotionClass> pStandLoco = masterLoco.ToLocomotionClass<DriveLocomotionClass>();
-                            pStandLoco.Ref.IsDriving = true;
-                        }
+                        // if (standLocoId == LocomotionClass.Drive)
+                        // {
+                        //     Pointer<DriveLocomotionClass> pStandLoco = masterLoco.ToLocomotionClass<DriveLocomotionClass>();
+                        //     pStandLoco.Ref.IsDriving = true;
+                        // }
                     }
                 }
 
@@ -421,6 +431,16 @@ namespace Extension.Ext
             pStand.Ref.Berzerk = pMaster.Ref.Berzerk;
             pStand.Ref.EMPLockRemaining = pMaster.Ref.EMPLockRemaining;
             pStand.Ref.ShouldLoseTargetNow = pMaster.Ref.ShouldLoseTargetNow;
+
+            // synch status
+            pStand.Ref.FirepowerMultiplier = pMaster.Ref.FirepowerMultiplier;
+            pStand.Ref.ArmorMultiplier = pMaster.Ref.ArmorMultiplier;
+
+            // synch ammo
+            if (Type.SameAmmo)
+            {
+                pStand.Ref.Ammo = pMaster.Ref.Ammo;
+            }
 
             // synch Promote
             if (Type.PromoteFromMaster && pStand.Ref.Type.Ref.Trainable)
@@ -606,7 +626,7 @@ namespace Extension.Ext
             pStand.Ref.TurretFacing.set(targetDir);
         }
 
-        public override void OnPut(Pointer<ObjectClass> pOwner, Pointer<CoordStruct> pCoord, DirStruct faceDir)
+        public override void OnPut(Pointer<ObjectClass> pOwner, Pointer<CoordStruct> pCoord, short faceDirValue8)
         {
             if (pStand.Ref.Base.InLimbo)
             {

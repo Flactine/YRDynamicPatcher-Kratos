@@ -18,6 +18,7 @@ namespace Extension.Ext
     {
 
         public GiftBoxState GiftBoxState => AttachEffectManager.GiftBoxState;
+        public bool SkipSelectVoice = false;
 
         public unsafe void TechnoClass_Init_GiftBox()
         {
@@ -42,6 +43,12 @@ namespace Extension.Ext
             GiftBoxState.IsSelected = pTechno.Ref.Base.IsSelected;
             GiftBoxState.BodyDir = pTechno.Ref.Facing.current();
             GiftBoxState.Group = pTechno.Ref.Group;
+            GiftBoxState.FirepowerMultiplier = pTechno.Ref.FirepowerMultiplier;
+            GiftBoxState.ArmorMultiplier = pTechno.Ref.ArmorMultiplier;
+            if (pTechno.CastToFoot(out Pointer<FootClass> pFoot))
+            {
+                GiftBoxState.SpeedMultiplier = pFoot.Ref.SpeedMultiplier;
+            }
             if (GiftBoxState.IsActive())
             {
                 if (!GiftBoxState.Data.OpenWhenDestoryed && !GiftBoxState.Data.OpenWhenHealthPercent && GiftBoxState.CanOpen())
@@ -189,19 +196,34 @@ namespace Extension.Ext
                     if (!pGift.IsNull)
                     {
                         Pointer<TechnoTypeClass> pGiftType = pGift.Ref.Type;
+                        TechnoExt giftExt = TechnoExt.ExtMap.Find(pGift);
 
                         if (data.IsTransform)
                         {
                             // 同步朝向
                             pGift.Ref.Facing.set(GiftBoxState.BodyDir);
+                            if (pGift.Ref.HasTurret())
+                            {
+                                pGift.Ref.TurretFacing.set(GiftBoxState.BodyDir);
+                            }
                             // 同步小队
                             pGift.Ref.Group = GiftBoxState.Group;
+                            pGift.Ref.ArmorMultiplier = GiftBoxState.ArmorMultiplier;
+                            pGift.Ref.FirepowerMultiplier = GiftBoxState.FirepowerMultiplier;
+                            if (pGift.CastToFoot(out Pointer<FootClass> pGiftFoot))
+                            {
+                                pGiftFoot.Ref.SpeedMultiplier = GiftBoxState.SpeedMultiplier;
+                            }
+                            // 同步AE属性
+                            giftExt.CrateStatus += this.CrateStatus;
                         }
 
                         // 同步选中
                         if (GiftBoxState.IsSelected)
                         {
+                            giftExt.SkipSelectVoice = true;
                             pGift.Ref.Base.Select();
+                            giftExt.SkipSelectVoice = false;
                         }
 
                         // 修改血量
@@ -219,7 +241,7 @@ namespace Extension.Ext
                                 pGift.Ref.Base.Health = health;
                             }
                         }
-                        
+
                         // 继承等级
                         if (data.InheritExperience && pGiftType.Ref.Trainable)
                         {
@@ -255,7 +277,7 @@ namespace Extension.Ext
                                 if (pDest.IsNull && pFocus.IsNull)
                                 {
                                     // 第一个傻站着，第二个之后的散开
-                                    if (scatter)
+                                    if (scatter || pGiftType.Ref.BalloonHover)
                                     {
                                         pGift.Ref.Base.Scatter(CoordStruct.Empty, true, false);
                                     }
